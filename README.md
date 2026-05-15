@@ -1,0 +1,197 @@
+<!DOCTYPE html><html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calculadora de Millas de Viaje</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }body {
+  margin: 0;
+  min-height: 100vh;
+  background: #0b0f0c;
+  color: #e8ffe8;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px;
+}
+
+.app {
+  width: 100%;
+  max-width: 480px;
+  background: #111a14;
+  border: 1px solid #1f8f3a;
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 0 20px rgba(0, 255, 100, 0.15);
+}
+
+h1 {
+  text-align: center;
+  color: #39ff7a;
+  font-size: 1.6rem;
+  margin-top: 0;
+}
+
+label {
+  display: block;
+  margin-top: 14px;
+  margin-bottom: 6px;
+  font-weight: bold;
+  color: #bfffcf;
+}
+
+input {
+  width: 100%;
+  padding: 13px;
+  border-radius: 10px;
+  border: 1px solid #2b8a45;
+  background: #050805;
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+input:focus {
+  outline: 2px solid #39ff7a;
+}
+
+button {
+  width: 100%;
+  margin-top: 20px;
+  padding: 15px;
+  border: none;
+  border-radius: 12px;
+  background: #19c95a;
+  color: #041006;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+.resultado {
+  margin-top: 22px;
+  background: #071008;
+  border: 1px solid #39ff7a;
+  border-radius: 14px;
+  padding: 16px;
+  text-align: center;
+}
+
+.numero {
+  font-size: 2.3rem;
+  font-weight: bold;
+  color: #39ff7a;
+  margin: 10px 0;
+}
+
+.detalle {
+  font-size: 0.95rem;
+  color: #d7ffd7;
+  line-height: 1.5;
+}
+
+.error {
+  color: #ff7676;
+  font-weight: bold;
+  margin-top: 12px;
+  text-align: center;
+}
+
+.limpiar {
+  background: #303830;
+  color: #e8ffe8;
+  margin-top: 10px;
+}
+
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>🚛 Millas del Viaje</h1><label for="fechaInicio">Fecha de inicio</label>
+<input type="date" id="fechaInicio" />
+
+<label for="fechaFinal">Fecha final</label>
+<input type="date" id="fechaFinal" />
+
+<label for="millasIniciales">Millas iniciales</label>
+<input type="number" id="millasIniciales" placeholder="Ejemplo: 125000" inputmode="numeric" />
+
+<label for="millasFinales">Millas finales</label>
+<input type="number" id="millasFinales" placeholder="Ejemplo: 126250" inputmode="numeric" />
+
+<button onclick="calcularMillas()">Calcular millas</button>
+<button class="limpiar" onclick="limpiarFormulario()">Limpiar</button>
+
+<div id="mensajeError" class="error"></div>
+
+<section class="resultado" id="resultado" style="display:none;">
+  <div>Total recorrido</div>
+  <div class="numero" id="totalMillas">0</div>
+  <div class="detalle" id="detalleViaje"></div>
+</section>
+
+  </main>  <script>
+    function calcularMillas() {
+      const fechaInicio = document.getElementById('fechaInicio').value;
+      const fechaFinal = document.getElementById('fechaFinal').value;
+      const millasIniciales = Number(document.getElementById('millasIniciales').value);
+      const millasFinales = Number(document.getElementById('millasFinales').value);
+      const mensajeError = document.getElementById('mensajeError');
+      const resultado = document.getElementById('resultado');
+      const totalMillas = document.getElementById('totalMillas');
+      const detalleViaje = document.getElementById('detalleViaje');
+
+      mensajeError.textContent = '';
+      resultado.style.display = 'none';
+
+      if (!fechaInicio || !fechaFinal) {
+        mensajeError.textContent = 'Faltan las fechas del viaje.';
+        return;
+      }
+
+      if (!millasIniciales || !millasFinales) {
+        mensajeError.textContent = 'Faltan las millas iniciales o finales.';
+        return;
+      }
+
+      if (millasFinales < millasIniciales) {
+        mensajeError.textContent = 'Las millas finales no pueden ser menores que las iniciales.';
+        return;
+      }
+
+      const total = millasFinales - millasIniciales;
+      const inicio = new Date(fechaInicio + 'T00:00:00');
+      const fin = new Date(fechaFinal + 'T00:00:00');
+      const diferenciaDias = Math.round((fin - inicio) / (1000 * 60 * 60 * 24)) + 1;
+
+      totalMillas.textContent = total.toLocaleString('en-US') + ' mi';
+      detalleViaje.innerHTML = `
+        Del <strong>${formatearFecha(fechaInicio)}</strong> al <strong>${formatearFecha(fechaFinal)}</strong><br>
+        Duración: <strong>${diferenciaDias}</strong> día(s)<br>
+        Promedio: <strong>${Math.round(total / diferenciaDias).toLocaleString('en-US')}</strong> millas por día
+      `;
+
+      resultado.style.display = 'block';
+    }
+
+    function formatearFecha(fecha) {
+      const partes = fecha.split('-');
+      return `${partes[1]}/${partes[2]}/${partes[0]}`;
+    }
+
+    function limpiarFormulario() {
+      document.getElementById('fechaInicio').value = '';
+      document.getElementById('fechaFinal').value = '';
+      document.getElementById('millasIniciales').value = '';
+      document.getElementById('millasFinales').value = '';
+      document.getElementById('mensajeError').textContent = '';
+      document.getElementById('resultado').style.display = 'none';
+    }
+  </script></body>
+</html>
