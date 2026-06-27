@@ -1,619 +1,282 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+  const STORAGE_KEY = "control_millas_v1";
+  const LIMITE_MILLAS_GRANDE = 1800;
 
-  <title>Control de Millas</title>
+  let viajes = [];
+  let ordenActual = "fecha";
 
-  <style>
-    :root {
-      --bg: #0f172a;
-      --card: #111827;
-      --card2: #1f2937;
-      --text: #f9fafb;
-      --muted: #9ca3af;
-      --accent: #22c55e;
-      --accent2: #3b82f6;
-      --danger: #ef4444;
-      --warning: #f59e0b;
-      --border: #374151;
-      --input: #020617;
-    }
+  function iniciarApp() {
+    cargarDatos();
+    ponerFechasDeHoy();
+    sugerirMillasIniciales();
+    calcularEnVivo();
+    mostrarViajes();
+    actualizarTotales();
+    avisarViajesPendientes();
 
-    * {
-      box-sizing: border-box;
-    }
+    document.getElementById("millasInicio").addEventListener("input", calcularEnVivo);
+    document.getElementById("millasFin").addEventListener("input", calcularEnVivo);
+  }
 
-    body {
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      background: linear-gradient(135deg, #020617, #0f172a);
-      color: var(--text);
-      min-height: 100vh;
-    }
+  function cargarDatos() {
+    const datos = localStorage.getItem(STORAGE_KEY);
 
-    header {
-      padding: 22px 16px;
-      text-align: center;
-      background: #020617;
-      border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-
-    header h1 {
-      margin: 0;
-      font-size: 28px;
-      color: var(--accent);
-    }
-
-    header p {
-      margin: 8px 0 0;
-      color: var(--muted);
-      font-size: 15px;
-    }
-
-    main {
-      width: min(1100px, 100%);
-      margin: 0 auto;
-      padding: 18px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 14px;
-      margin-bottom: 18px;
-    }
-
-    .stat {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 16px;
-      text-align: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,.25);
-    }
-
-    .stat .label {
-      color: var(--muted);
-      font-size: 14px;
-      margin-bottom: 8px;
-    }
-
-    .stat .value {
-      font-size: 26px;
-      font-weight: bold;
-      color: var(--accent);
-    }
-
-    .card {
-      background: rgba(17, 24, 39, 0.96);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 18px;
-      margin-bottom: 18px;
-      box-shadow: 0 12px 35px rgba(0,0,0,.28);
-    }
-
-    .card h2 {
-      margin: 0 0 16px;
-      color: #e5e7eb;
-      font-size: 22px;
-    }
-
-    label {
-      display: block;
-      font-size: 14px;
-      color: var(--muted);
-      margin-bottom: 6px;
-    }
-
-    input,
-    textarea,
-    select {
-      width: 100%;
-      padding: 13px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: var(--input);
-      color: var(--text);
-      font-size: 16px;
-      outline: none;
-    }
-
-    input:focus,
-    textarea:focus,
-    select:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 2px rgba(34,197,94,.18);
-    }
-
-    textarea {
-      resize: vertical;
-      min-height: 70px;
-    }
-
-    .form-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      margin-bottom: 14px;
-    }
-
-    .form-row-3 {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 14px;
-      margin-bottom: 14px;
-    }
-
-    .buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 14px;
-    }
-
-    button {
-      border: none;
-      border-radius: 12px;
-      padding: 12px 16px;
-      font-size: 15px;
-      font-weight: bold;
-      cursor: pointer;
-      color: white;
-      background: var(--accent2);
-      transition: .2s;
-    }
-
-    button:hover {
-      transform: translateY(-1px);
-      filter: brightness(1.08);
-    }
-
-    .btn-save {
-      background: var(--accent);
-      color: #052e16;
-    }
-
-    .btn-clear {
-      background: var(--warning);
-      color: #111827;
-    }
-
-    .btn-danger {
-      background: var(--danger);
-    }
-
-    .btn-dark {
-      background: var(--card2);
-      border: 1px solid var(--border);
-    }
-
-    .btn-share {
-      background: #06b6d4;
-      color: #082f49;
-    }
-
-    .resultado {
-      margin-top: 10px;
-      background: #052e16;
-      border: 1px solid #16a34a;
-      padding: 14px;
-      border-radius: 14px;
-      color: #bbf7d0;
-      font-weight: bold;
-      display: none;
-    }
-
-    .search-box {
-      margin-bottom: 14px;
-    }
-
-    .trip {
-      background: #020617;
-      border: 1px solid var(--border);
-      border-radius: 15px;
-      padding: 15px;
-      margin-bottom: 12px;
-    }
-
-    .trip-top {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 8px;
-    }
-
-    .trip-title {
-      font-size: 18px;
-      font-weight: bold;
-      color: #f8fafc;
-    }
-
-    .trip-miles {
-      color: var(--accent);
-      font-weight: bold;
-      font-size: 20px;
-    }
-
-    .trip-details {
-      color: var(--muted);
-      line-height: 1.6;
-      font-size: 15px;
-    }
-
-    .trip-actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 12px;
-    }
-
-    .trip-actions button {
-      padding: 9px 12px;
-      font-size: 14px;
-    }
-
-    .empty {
-      text-align: center;
-      color: var(--muted);
-      padding: 25px;
-      border: 1px dashed var(--border);
-      border-radius: 14px;
-    }
-
-    .small-note {
-      color: var(--muted);
-      font-size: 13px;
-      margin-top: 10px;
-      line-height: 1.5;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    @media (max-width: 800px) {
-      .grid,
-      .form-row,
-      .form-row-3 {
-        grid-template-columns: 1fr;
-      }
-
-      header h1 {
-        font-size: 24px;
-      }
-
-      .stat .value {
-        font-size: 22px;
-      }
-
-      button {
-        width: 100%;
-      }
-
-      .trip-actions button {
-        width: auto;
-        flex: 1;
+    if (datos) {
+      try {
+        viajes = JSON.parse(datos);
+      } catch (error) {
+        viajes = [];
+        alert("Hubo un problema leyendo los datos guardados.");
       }
     }
-  </style>
-</head>
+  }
 
-<body>
+  function guardarDatos() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(viajes));
+  }
 
-  <header>
-    <h1>🚛 Control de Millas</h1>
-    <p>Registro sencillo para viajes, millas y reportes.</p>
-  </header>
+  function ponerFechasDeHoy() {
+    const hoy = new Date().toISOString().slice(0, 10);
+    document.getElementById("fechaInicio").value = hoy;
+    document.getElementById("fechaFin").value = hoy;
+  }
 
-  <main>
+  function obtenerUltimoOdometro() {
+    if (viajes.length === 0) return "";
 
-    <section class="grid">
-      <div class="stat">
-        <div class="label">Viajes guardados</div>
-        <div class="value" id="totalViajes">0</div>
-      </div>
+    const ordenados = [...viajes].sort((a, b) => {
+      return new Date(b.fechaFin || b.fechaInicio) - new Date(a.fechaFin || a.fechaInicio);
+    });
 
-      <div class="stat">
-        <div class="label">Millas totales</div>
-        <div class="value" id="totalMillas">0</div>
-      </div>
-
-      <div class="stat">
-        <div class="label">Último viaje</div>
-        <div class="value" id="ultimaMilla">0</div>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2 id="formTitle">➕ Nuevo viaje</h2>
-
-      <input type="hidden" id="editId" />
-
-      <div class="form-row">
-        <div>
-          <label for="fechaInicio">Fecha de inicio</label>
-          <input type="date" id="fechaInicio" />
-        </div>
-
-        <div>
-          <label for="fechaFin">Fecha de final</label>
-          <input type="date" id="fechaFin" />
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div>
-          <label for="origen">Origen</label>
-          <input type="text" id="origen" placeholder="Ejemplo: Nogales, AZ" />
-        </div>
-
-        <div>
-          <label for="destino">Destino</label>
-          <input type="text" id="destino" placeholder="Ejemplo: Chandler, AZ" />
-        </div>
-      </div>
-
-      <div class="form-row-3">
-        <div>
-          <label for="millasInicio">Millas iniciales</label>
-          <input type="number" id="millasInicio" placeholder="Ejemplo: 120500" />
-        </div>
-
-        <div>
-          <label for="millasFin">Millas finales</label>
-          <input type="number" id="millasFin" placeholder="Ejemplo: 120850" />
-        </div>
-
-        <div>
-          <label for="tipoViaje">Tipo de viaje</label>
-          <select id="tipoViaje">
-            <option value="Trabajo">Trabajo</option>
-            <option value="Personal">Personal</option>
-            <option value="Otro">Otro</option>
-          </select>
-        </div>
-      </div>
-
-      <div>
-        <label for="notas">Notas</label>
-        <textarea id="notas" placeholder="Ejemplo: carga, vacío, cita, ruta, cliente, etc."></textarea>
-      </div>
-
-      <div id="resultado" class="resultado"></div>
-
-      <div class="buttons">
-        <button class="btn-save" onclick="guardarViaje()">💾 Guardar viaje</button>
-        <button class="btn-clear" onclick="limpiarFormulario()">🧹 Limpiar</button>
-        <button class="btn-share" onclick="compartirReporte()">📲 Compartir reporte</button>
-        <button class="btn-dark" onclick="exportarDatos()">⬇️ Exportar backup</button>
-        <button class="btn-dark" onclick="document.getElementById('importFile').click()">⬆️ Importar backup</button>
-        <input type="file" id="importFile" class="hidden" accept=".json" onchange="importarDatos(event)" />
-      </div>
-
-      <p class="small-note">
-        Nota: este programa guarda los datos en el navegador del dispositivo.
-        Para pasarlo a otro celular, usa <b>Exportar backup</b> y luego <b>Importar backup</b>.
-      </p>
-    </section>
-
-    <section class="card">
-      <h2>📋 Historial de viajes</h2>
-
-      <div class="search-box">
-        <label for="buscar">Buscar viaje</label>
-        <input type="text" id="buscar" placeholder="Buscar por origen, destino, fecha o nota..." oninput="mostrarViajes()" />
-      </div>
-
-      <div class="buttons">
-        <button class="btn-dark" onclick="ordenarPorFecha()">📅 Ordenar por fecha</button>
-        <button class="btn-dark" onclick="ordenarPorMillas()">🔢 Ordenar por millas</button>
-        <button class="btn-danger" onclick="borrarTodo()">🗑️ Borrar todo</button>
-      </div>
-
-      <br />
-
-      <div id="listaViajes"></div>
-    </section>
-
-  </main>
-
-  <script>
-    const STORAGE_KEY = "control_millas_v1";
-
-    let viajes = [];
-    let ordenActual = "fecha";
-
-    function iniciarApp() {
-      cargarDatos();
-      ponerFechasDeHoy();
-      calcularEnVivo();
-      mostrarViajes();
-      actualizarTotales();
-
-      document.getElementById("millasInicio").addEventListener("input", calcularEnVivo);
-      document.getElementById("millasFin").addEventListener("input", calcularEnVivo);
-    }
-
-    function cargarDatos() {
-      const datos = localStorage.getItem(STORAGE_KEY);
-
-      if (datos) {
-        try {
-          viajes = JSON.parse(datos);
-        } catch (error) {
-          viajes = [];
-          alert("Hubo un problema leyendo los datos guardados.");
-        }
+    for (const v of ordenados) {
+      if (Number(v.millasFin) > 0) {
+        return Number(v.millasFin);
       }
     }
 
-    function guardarDatos() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(viajes));
+    return "";
+  }
+
+  function sugerirMillasIniciales() {
+    const inputInicio = document.getElementById("millasInicio");
+    const editId = document.getElementById("editId").value;
+
+    if (editId) return;
+    if (inputInicio.value) return;
+
+    const ultimoOdometro = obtenerUltimoOdometro();
+
+    if (ultimoOdometro) {
+      inputInicio.value = ultimoOdometro;
+    }
+  }
+
+  function calcularMillas() {
+    const inicio = Number(document.getElementById("millasInicio").value);
+    const fin = Number(document.getElementById("millasFin").value);
+
+    if (!inicio || !fin) {
+      return null;
     }
 
-    function ponerFechasDeHoy() {
-      const hoy = new Date().toISOString().slice(0, 10);
-      document.getElementById("fechaInicio").value = hoy;
-      document.getElementById("fechaFin").value = hoy;
-    }
+    return fin - inicio;
+  }
 
-    function calcularMillas() {
-      const inicio = Number(document.getElementById("millasInicio").value);
-      const fin = Number(document.getElementById("millasFin").value);
+  function calcularEnVivo() {
+    const resultado = document.getElementById("resultado");
+    const inicio = Number(document.getElementById("millasInicio").value);
+    const fin = Number(document.getElementById("millasFin").value);
+    const millas = calcularMillas();
 
-      if (!inicio || !fin) {
-        return null;
-      }
-
-      return fin - inicio;
-    }
-
-    function calcularEnVivo() {
-      const resultado = document.getElementById("resultado");
-      const millas = calcularMillas();
-
-      if (millas === null) {
-        resultado.style.display = "none";
-        return;
-      }
-
-      if (millas < 0) {
-        resultado.style.display = "block";
-        resultado.style.background = "#450a0a";
-        resultado.style.borderColor = "#ef4444";
-        resultado.style.color = "#fecaca";
-        resultado.textContent = "⚠️ Las millas finales no pueden ser menores que las iniciales.";
-        return;
-      }
-
+    if (inicio && !fin) {
       resultado.style.display = "block";
-      resultado.style.background = "#052e16";
-      resultado.style.borderColor = "#16a34a";
-      resultado.style.color = "#bbf7d0";
-      resultado.textContent = "✅ Total de este viaje: " + millas.toLocaleString("en-US") + " millas";
+      resultado.style.background = "#451a03";
+      resultado.style.borderColor = "#f59e0b";
+      resultado.style.color = "#fde68a";
+      resultado.textContent = "🚛 Viaje pendiente: ya tienes millas iniciales, faltan millas finales.";
+      return;
     }
 
-    function guardarViaje() {
-      const editId = document.getElementById("editId").value;
-
-      const fechaInicio = document.getElementById("fechaInicio").value;
-      const fechaFin = document.getElementById("fechaFin").value;
-      const origen = document.getElementById("origen").value.trim();
-      const destino = document.getElementById("destino").value.trim();
-      const millasInicio = Number(document.getElementById("millasInicio").value);
-      const millasFin = Number(document.getElementById("millasFin").value);
-      const tipoViaje = document.getElementById("tipoViaje").value;
-      const notas = document.getElementById("notas").value.trim();
-
-      if (!fechaInicio || !fechaFin) {
-        alert("Pon la fecha de inicio y la fecha final.");
-        return;
-      }
-
-      if (!millasInicio || !millasFin) {
-        alert("Pon las millas iniciales y finales.");
-        return;
-      }
-
-      const millasTotal = millasFin - millasInicio;
-
-      if (millasTotal < 0) {
-        alert("Las millas finales no pueden ser menores que las iniciales.");
-        return;
-      }
-
-      const viaje = {
-        id: editId || crypto.randomUUID(),
-        fechaInicio,
-        fechaFin,
-        origen,
-        destino,
-        millasInicio,
-        millasFin,
-        millasTotal,
-        tipoViaje,
-        notas,
-        creado: new Date().toISOString()
-      };
-
-      if (editId) {
-        viajes = viajes.map(v => v.id === editId ? viaje : v);
-      } else {
-        viajes.push(viaje);
-      }
-
-      guardarDatos();
-      limpiarFormulario();
-      mostrarViajes();
-      actualizarTotales();
-
-      alert("Viaje guardado correctamente, my friend ✅");
-    }
-
-    function limpiarFormulario() {
-      document.getElementById("editId").value = "";
-      document.getElementById("formTitle").textContent = "➕ Nuevo viaje";
-
-      document.getElementById("origen").value = "";
-      document.getElementById("destino").value = "";
-      document.getElementById("millasInicio").value = "";
-      document.getElementById("millasFin").value = "";
-      document.getElementById("tipoViaje").value = "Trabajo";
-      document.getElementById("notas").value = "";
-
-      ponerFechasDeHoy();
-
-      const resultado = document.getElementById("resultado");
+    if (millas === null) {
       resultado.style.display = "none";
+      return;
     }
 
-    function mostrarViajes() {
-      const lista = document.getElementById("listaViajes");
-      const buscar = document.getElementById("buscar").value.toLowerCase().trim();
+    if (millas < 0) {
+      resultado.style.display = "block";
+      resultado.style.background = "#450a0a";
+      resultado.style.borderColor = "#ef4444";
+      resultado.style.color = "#fecaca";
+      resultado.textContent = "⚠️ Las millas finales no pueden ser menores que las iniciales.";
+      return;
+    }
 
-      let viajesFiltrados = viajes.filter(v => {
-        const texto = `
-          ${v.fechaInicio}
-          ${v.fechaFin}
-          ${v.origen}
-          ${v.destino}
-          ${v.tipoViaje}
-          ${v.notas}
-          ${v.millasTotal}
-        `.toLowerCase();
+    if (millas > LIMITE_MILLAS_GRANDE) {
+      resultado.style.display = "block";
+      resultado.style.background = "#451a03";
+      resultado.style.borderColor = "#f59e0b";
+      resultado.style.color = "#fde68a";
+      resultado.textContent = "⚠️ Revisa el odómetro: este viaje marca " + millas.toLocaleString("en-US") + " millas.";
+      return;
+    }
 
-        return texto.includes(buscar);
-      });
+    resultado.style.display = "block";
+    resultado.style.background = "#052e16";
+    resultado.style.borderColor = "#16a34a";
+    resultado.style.color = "#bbf7d0";
+    resultado.textContent = "✅ Total de este viaje: " + millas.toLocaleString("en-US") + " millas";
+  }
 
-      if (ordenActual === "fecha") {
-        viajesFiltrados.sort((a, b) => new Date(b.fechaFin) - new Date(a.fechaFin));
-      }
+  function validarMillas(millasInicio, millasFin) {
+    if (!millasInicio || millasInicio <= 0) {
+      alert("Pon las millas iniciales.");
+      return false;
+    }
 
-      if (ordenActual === "millas") {
-        viajesFiltrados.sort((a, b) => b.millasTotal - a.millasTotal);
-      }
+    if (!millasFin || millasFin <= 0) {
+      return confirm("🚛 Este viaje quedará PENDIENTE porque faltan las millas finales.\n\n¿Quieres guardarlo así?");
+    }
 
-      if (viajesFiltrados.length === 0) {
-        lista.innerHTML = `<div class="empty">Todavía no hay viajes guardados.</div>`;
-        return;
-      }
+    const millasTotal = millasFin - millasInicio;
 
-      lista.innerHTML = viajesFiltrados.map(v => `
-        <div class="trip">
+    if (millasTotal < 0) {
+      alert("Las millas finales no pueden ser menores que las iniciales.");
+      return false;
+    }
+
+    if (millasTotal > LIMITE_MILLAS_GRANDE) {
+      return confirm(
+        "⚠️ Revisa el odómetro.\n\n" +
+        "Este viaje marca " + millasTotal.toLocaleString("en-US") + " millas.\n\n" +
+        "¿Seguro que quieres guardarlo así?"
+      );
+    }
+
+    return true;
+  }
+
+  function guardarViaje() {
+    const editId = document.getElementById("editId").value;
+
+    const fechaInicio = document.getElementById("fechaInicio").value;
+    const fechaFin = document.getElementById("fechaFin").value;
+    const origen = document.getElementById("origen").value.trim();
+    const destino = document.getElementById("destino").value.trim();
+    const millasInicio = Number(document.getElementById("millasInicio").value);
+    const millasFin = Number(document.getElementById("millasFin").value);
+    const tipoViaje = document.getElementById("tipoViaje").value;
+    const notas = document.getElementById("notas").value.trim();
+
+    if (!fechaInicio || !fechaFin) {
+      alert("Pon la fecha de inicio y la fecha final.");
+      return;
+    }
+
+    if (!validarMillas(millasInicio, millasFin)) {
+      return;
+    }
+
+    const millasTotal = millasFin > 0 ? millasFin - millasInicio : 0;
+    const pendiente = !millasFin || millasFin <= 0;
+
+    const viaje = {
+      id: editId || crypto.randomUUID(),
+      fechaInicio,
+      fechaFin,
+      origen,
+      destino,
+      millasInicio,
+      millasFin,
+      millasTotal,
+      pendiente,
+      tipoViaje,
+      notas,
+      creado: editId ? obtenerFechaCreado(editId) : new Date().toISOString(),
+      actualizado: new Date().toISOString()
+    };
+
+    if (editId) {
+      viajes = viajes.map(v => v.id === editId ? viaje : v);
+    } else {
+      viajes.push(viaje);
+    }
+
+    guardarDatos();
+    limpiarFormulario();
+    sugerirMillasIniciales();
+    mostrarViajes();
+    actualizarTotales();
+
+    alert(pendiente ? "Viaje guardado como pendiente 🚛" : "Viaje guardado correctamente, my friend ✅");
+  }
+
+  function obtenerFechaCreado(id) {
+    const viaje = viajes.find(v => v.id === id);
+    return viaje?.creado || new Date().toISOString();
+  }
+
+  function limpiarFormulario() {
+    document.getElementById("editId").value = "";
+    document.getElementById("formTitle").textContent = "➕ Nuevo viaje";
+
+    document.getElementById("origen").value = "";
+    document.getElementById("destino").value = "";
+    document.getElementById("millasInicio").value = "";
+    document.getElementById("millasFin").value = "";
+    document.getElementById("tipoViaje").value = "Trabajo";
+    document.getElementById("notas").value = "";
+
+    ponerFechasDeHoy();
+    sugerirMillasIniciales();
+
+    const resultado = document.getElementById("resultado");
+    resultado.style.display = "none";
+  }
+
+  function mostrarViajes() {
+    const lista = document.getElementById("listaViajes");
+    const buscar = document.getElementById("buscar").value.toLowerCase().trim();
+
+    let viajesFiltrados = viajes.filter(v => {
+      const texto = `
+        ${v.fechaInicio}
+        ${v.fechaFin}
+        ${v.origen}
+        ${v.destino}
+        ${v.tipoViaje}
+        ${v.notas}
+        ${v.millasTotal}
+        ${v.pendiente ? "pendiente" : ""}
+      `.toLowerCase();
+
+      return texto.includes(buscar);
+    });
+
+    if (ordenActual === "fecha") {
+      viajesFiltrados.sort((a, b) => new Date(b.fechaFin) - new Date(a.fechaFin));
+    }
+
+    if (ordenActual === "millas") {
+      viajesFiltrados.sort((a, b) => Number(b.millasTotal || 0) - Number(a.millasTotal || 0));
+    }
+
+    if (viajesFiltrados.length === 0) {
+      lista.innerHTML = `<div class="empty">Todavía no hay viajes guardados.</div>`;
+      return;
+    }
+
+    lista.innerHTML = viajesFiltrados.map(v => {
+      const pendiente = v.pendiente || !v.millasFin || Number(v.millasFin) <= 0;
+
+      return `
+        <div class="trip" style="${pendiente ? "border-color:#f59e0b;" : ""}">
           <div class="trip-top">
             <div class="trip-title">
-              ${escaparHTML(v.origen || "Sin origen")} → ${escaparHTML(v.destino || "Sin destino")}
+              ${pendiente ? "⚠️ " : ""}${escaparHTML(v.origen || "Sin origen")} → ${escaparHTML(v.destino || "Sin destino")}
             </div>
 
-            <div class="trip-miles">
-              ${Number(v.millasTotal).toLocaleString("en-US")} mi
+            <div class="trip-miles" style="${pendiente ? "color:#f59e0b;" : ""}">
+              ${pendiente ? "Pendiente" : Number(v.millasTotal).toLocaleString("en-US") + " mi"}
             </div>
           </div>
 
@@ -621,7 +284,12 @@
             <div>📅 Inicio: <b>${formatearFecha(v.fechaInicio)}</b></div>
             <div>📅 Final: <b>${formatearFecha(v.fechaFin)}</b></div>
             <div>🚛 Tipo: <b>${escaparHTML(v.tipoViaje)}</b></div>
-            <div>🔢 Inicial: ${Number(v.millasInicio).toLocaleString("en-US")} | Final: ${Number(v.millasFin).toLocaleString("en-US")}</div>
+            <div>
+              🔢 Inicial: ${Number(v.millasInicio).toLocaleString("en-US")}
+              |
+              Final: ${pendiente ? "<b style='color:#f59e0b;'>Falta capturar</b>" : Number(v.millasFin).toLocaleString("en-US")}
+            </div>
+            ${pendiente ? `<div style="color:#f59e0b;"><b>🚛 Este viaje está pendiente de millas finales.</b></div>` : ""}
             ${v.notas ? `<div>📝 Notas: ${escaparHTML(v.notas)}</div>` : ""}
           </div>
 
@@ -631,279 +299,307 @@
             <button class="btn-danger" onclick="borrarViaje('${v.id}')">🗑️ Borrar</button>
           </div>
         </div>
-      `).join("");
+      `;
+    }).join("");
+  }
+
+  function editarViaje(id) {
+    const viaje = viajes.find(v => v.id === id);
+    if (!viaje) return;
+
+    document.getElementById("editId").value = viaje.id;
+    document.getElementById("formTitle").textContent = "✏️ Editando viaje";
+
+    document.getElementById("fechaInicio").value = viaje.fechaInicio;
+    document.getElementById("fechaFin").value = viaje.fechaFin;
+    document.getElementById("origen").value = viaje.origen;
+    document.getElementById("destino").value = viaje.destino;
+    document.getElementById("millasInicio").value = viaje.millasInicio;
+    document.getElementById("millasFin").value = viaje.millasFin || "";
+    document.getElementById("tipoViaje").value = viaje.tipoViaje;
+    document.getElementById("notas").value = viaje.notas;
+
+    calcularEnVivo();
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  }
+
+  function borrarViaje(id) {
+    const confirmar = confirm("¿Seguro que quieres borrar este viaje?");
+    if (!confirmar) return;
+
+    viajes = viajes.filter(v => v.id !== id);
+    guardarDatos();
+    mostrarViajes();
+    actualizarTotales();
+  }
+
+  function borrarTodo() {
+    if (viajes.length === 0) {
+      alert("No hay viajes para borrar.");
+      return;
     }
 
-    function editarViaje(id) {
-      const viaje = viajes.find(v => v.id === id);
+    const confirmar = confirm("¿Seguro que quieres borrar TODO el historial de millas?");
+    if (!confirmar) return;
 
-      if (!viaje) return;
+    viajes = [];
+    guardarDatos();
+    mostrarViajes();
+    actualizarTotales();
+    limpiarFormulario();
+  }
 
-      document.getElementById("editId").value = viaje.id;
-      document.getElementById("formTitle").textContent = "✏️ Editando viaje";
+  function actualizarTotales() {
+    const totalViajes = viajes.length;
+    const totalMillas = viajes.reduce((acc, v) => acc + Number(v.millasTotal || 0), 0);
 
-      document.getElementById("fechaInicio").value = viaje.fechaInicio;
-      document.getElementById("fechaFin").value = viaje.fechaFin;
-      document.getElementById("origen").value = viaje.origen;
-      document.getElementById("destino").value = viaje.destino;
-      document.getElementById("millasInicio").value = viaje.millasInicio;
-      document.getElementById("millasFin").value = viaje.millasFin;
-      document.getElementById("tipoViaje").value = viaje.tipoViaje;
-      document.getElementById("notas").value = viaje.notas;
+    let ultimaMilla = 0;
 
-      calcularEnVivo();
-
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-      });
+    if (viajes.length > 0) {
+      const completados = viajes.filter(v => Number(v.millasFin) > 0);
+      const ordenados = [...completados].sort((a, b) => new Date(b.fechaFin) - new Date(a.fechaFin));
+      ultimaMilla = ordenados[0]?.millasTotal || 0;
     }
 
-    function borrarViaje(id) {
-      const confirmar = confirm("¿Seguro que quieres borrar este viaje?");
+    document.getElementById("totalViajes").textContent = totalViajes.toLocaleString("en-US");
+    document.getElementById("totalMillas").textContent = totalMillas.toLocaleString("en-US");
+    document.getElementById("ultimaMilla").textContent = Number(ultimaMilla).toLocaleString("en-US");
+  }
 
-      if (!confirmar) return;
+  function avisarViajesPendientes() {
+    const pendientes = viajes.filter(v => v.pendiente || !v.millasFin || Number(v.millasFin) <= 0);
 
-      viajes = viajes.filter(v => v.id !== id);
-      guardarDatos();
-      mostrarViajes();
-      actualizarTotales();
+    if (pendientes.length > 0) {
+      setTimeout(() => {
+        alert("🚛 Tienes " + pendientes.length + " viaje(s) pendiente(s) sin millas finales.");
+      }, 700);
+    }
+  }
+
+  function ordenarPorFecha() {
+    ordenActual = "fecha";
+    mostrarViajes();
+  }
+
+  function ordenarPorMillas() {
+    ordenActual = "millas";
+    mostrarViajes();
+  }
+
+  function crearReporteGeneral() {
+    const totalMillas = viajes.reduce((acc, v) => acc + Number(v.millasTotal || 0), 0);
+
+    if (viajes.length === 0) {
+      return "Reporte de millas\n\nNo hay viajes guardados todavía.";
     }
 
-    function borrarTodo() {
-      if (viajes.length === 0) {
-        alert("No hay viajes para borrar.");
-        return;
+    let reporte = "🚛 Reporte de millas\n\n";
+    reporte += "Viajes guardados: " + viajes.length + "\n";
+    reporte += "Millas totales: " + totalMillas.toLocaleString("en-US") + " mi\n\n";
+
+    const ordenados = [...viajes].sort((a, b) => new Date(b.fechaFin) - new Date(a.fechaFin));
+
+    ordenados.forEach((v, index) => {
+      const pendiente = v.pendiente || !v.millasFin || Number(v.millasFin) <= 0;
+
+      reporte += `${index + 1}. ${v.origen || "Sin origen"} → ${v.destino || "Sin destino"}\n`;
+      reporte += `   Fecha: ${v.fechaInicio} a ${v.fechaFin}\n`;
+      reporte += `   Inicial: ${Number(v.millasInicio).toLocaleString("en-US")}\n`;
+
+      if (pendiente) {
+        reporte += `   Final: PENDIENTE\n`;
+        reporte += `   Total: PENDIENTE\n`;
+      } else {
+        reporte += `   Final: ${Number(v.millasFin).toLocaleString("en-US")}\n`;
+        reporte += `   Total: ${Number(v.millasTotal).toLocaleString("en-US")} mi\n`;
       }
-
-      const confirmar = confirm("¿Seguro que quieres borrar TODO el historial de millas?");
-
-      if (!confirmar) return;
-
-      viajes = [];
-      guardarDatos();
-      mostrarViajes();
-      actualizarTotales();
-      limpiarFormulario();
-    }
-
-    function actualizarTotales() {
-      const totalViajes = viajes.length;
-      const totalMillas = viajes.reduce((acc, v) => acc + Number(v.millasTotal || 0), 0);
-
-      let ultimaMilla = 0;
-
-      if (viajes.length > 0) {
-        const ordenados = [...viajes].sort((a, b) => new Date(b.fechaFin) - new Date(a.fechaFin));
-        ultimaMilla = ordenados[0].millasTotal || 0;
-      }
-
-      document.getElementById("totalViajes").textContent = totalViajes.toLocaleString("en-US");
-      document.getElementById("totalMillas").textContent = totalMillas.toLocaleString("en-US");
-      document.getElementById("ultimaMilla").textContent = Number(ultimaMilla).toLocaleString("en-US");
-    }
-
-    function ordenarPorFecha() {
-      ordenActual = "fecha";
-      mostrarViajes();
-    }
-
-    function ordenarPorMillas() {
-      ordenActual = "millas";
-      mostrarViajes();
-    }
-
-    function crearReporteGeneral() {
-      const totalMillas = viajes.reduce((acc, v) => acc + Number(v.millasTotal || 0), 0);
-
-      if (viajes.length === 0) {
-        return "Reporte de millas\n\nNo hay viajes guardados todavía.";
-      }
-
-      let reporte = "🚛 Reporte de millas\n\n";
-      reporte += "Viajes guardados: " + viajes.length + "\n";
-      reporte += "Millas totales: " + totalMillas.toLocaleString("en-US") + " mi\n\n";
-
-      const ordenados = [...viajes].sort((a, b) => new Date(b.fechaFin) - new Date(a.fechaFin));
-
-      ordenados.forEach((v, index) => {
-        reporte += `${index + 1}. ${v.origen || "Sin origen"} → ${v.destino || "Sin destino"}\n`;
-        reporte += `   Fecha: ${v.fechaInicio} a ${v.fechaFin}\n`;
-        reporte += `   Millas: ${Number(v.millasTotal).toLocaleString("en-US")} mi\n`;
-        reporte += `   Inicial: ${Number(v.millasInicio).toLocaleString("en-US")} | Final: ${Number(v.millasFin).toLocaleString("en-US")}\n`;
-
-        if (v.notas) {
-          reporte += `   Notas: ${v.notas}\n`;
-        }
-
-        reporte += "\n";
-      });
-
-      return reporte;
-    }
-
-    function crearReporteDeViaje(v) {
-      let reporte = "🚛 Reporte de viaje\n\n";
-      reporte += `Origen: ${v.origen || "Sin origen"}\n`;
-      reporte += `Destino: ${v.destino || "Sin destino"}\n`;
-      reporte += `Fecha inicio: ${v.fechaInicio}\n`;
-      reporte += `Fecha final: ${v.fechaFin}\n`;
-      reporte += `Millas iniciales: ${Number(v.millasInicio).toLocaleString("en-US")}\n`;
-      reporte += `Millas finales: ${Number(v.millasFin).toLocaleString("en-US")}\n`;
-      reporte += `Total: ${Number(v.millasTotal).toLocaleString("en-US")} mi\n`;
-      reporte += `Tipo: ${v.tipoViaje}\n`;
 
       if (v.notas) {
-        reporte += `Notas: ${v.notas}\n`;
+        reporte += `   Notas: ${v.notas}\n`;
       }
 
-      return reporte;
+      reporte += "\n";
+    });
+
+    return reporte;
+  }
+
+  function crearReporteDeViaje(v) {
+    const pendiente = v.pendiente || !v.millasFin || Number(v.millasFin) <= 0;
+
+    let reporte = "🚛 Reporte de viaje\n\n";
+    reporte += `Origen: ${v.origen || "Sin origen"}\n`;
+    reporte += `Destino: ${v.destino || "Sin destino"}\n`;
+    reporte += `Fecha inicio: ${v.fechaInicio}\n`;
+    reporte += `Fecha final: ${v.fechaFin}\n`;
+    reporte += `Millas iniciales: ${Number(v.millasInicio).toLocaleString("en-US")}\n`;
+
+    if (pendiente) {
+      reporte += `Millas finales: PENDIENTE\n`;
+      reporte += `Total: PENDIENTE\n`;
+    } else {
+      reporte += `Millas finales: ${Number(v.millasFin).toLocaleString("en-US")}\n`;
+      reporte += `Total: ${Number(v.millasTotal).toLocaleString("en-US")} mi\n`;
     }
 
-    async function compartirReporte() {
-      const reporte = crearReporteGeneral();
+    reporte += `Tipo: ${v.tipoViaje}\n`;
 
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            title: "Reporte de millas",
-            text: reporte
-          });
-        } catch (error) {
-          copiarTexto(reporte);
-        }
-      } else {
-        copiarTexto(reporte);
-      }
+    if (v.notas) {
+      reporte += `Notas: ${v.notas}\n`;
     }
 
-    async function compartirUnViaje(id) {
-      const viaje = viajes.find(v => v.id === id);
+    return reporte;
+  }
 
-      if (!viaje) return;
+  async function compartirReporte() {
+    const reporte = crearReporteGeneral();
 
-      const reporte = crearReporteDeViaje(viaje);
-
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            title: "Reporte de viaje",
-            text: reporte
-          });
-        } catch (error) {
-          copiarTexto(reporte);
-        }
-      } else {
-        copiarTexto(reporte);
-      }
-    }
-
-    function copiarTexto(texto) {
-      navigator.clipboard.writeText(texto)
-        .then(() => {
-          alert("Reporte copiado. Ya lo puedes pegar en WhatsApp o mensaje ✅");
-        })
-        .catch(() => {
-          alert("No se pudo copiar automáticamente. Selecciona y copia manualmente:\n\n" + texto);
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Reporte de millas",
+          text: reporte
         });
+      } catch (error) {
+        copiarTexto(reporte);
+      }
+    } else {
+      copiarTexto(reporte);
     }
+  }
 
-    function exportarDatos() {
-      const backup = {
-        app: "Control de Millas",
-        version: "1.0",
-        fechaBackup: new Date().toISOString(),
-        viajes
-      };
+  async function compartirUnViaje(id) {
+    const viaje = viajes.find(v => v.id === id);
+    if (!viaje) return;
 
-      const contenido = JSON.stringify(backup, null, 2);
-      const blob = new Blob([contenido], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
+    const reporte = crearReporteDeViaje(viaje);
 
-      const enlace = document.createElement("a");
-      enlace.href = url;
-      enlace.download = "backup-millas.json";
-      enlace.click();
-
-      URL.revokeObjectURL(url);
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Reporte de viaje",
+          text: reporte
+        });
+      } catch (error) {
+        copiarTexto(reporte);
+      }
+    } else {
+      copiarTexto(reporte);
     }
+  }
 
-    function importarDatos(event) {
-      const archivo = event.target.files[0];
+  function copiarTexto(texto) {
+    navigator.clipboard.writeText(texto)
+      .then(() => {
+        alert("Reporte copiado. Ya lo puedes pegar en WhatsApp o mensaje ✅");
+      })
+      .catch(() => {
+        alert("No se pudo copiar automáticamente. Selecciona y copia manualmente:\n\n" + texto);
+      });
+  }
 
-      if (!archivo) return;
+  function exportarDatos() {
+    const backup = {
+      app: "Control de Millas",
+      version: "1.1",
+      fechaBackup: new Date().toISOString(),
+      viajes
+    };
 
-      const lector = new FileReader();
+    const contenido = JSON.stringify(backup, null, 2);
+    const blob = new Blob([contenido], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
 
-      lector.onload = function(e) {
-        try {
-          const contenido = JSON.parse(e.target.result);
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = "backup-millas.json";
+    enlace.click();
 
-          let viajesImportados = [];
+    URL.revokeObjectURL(url);
+  }
 
-          if (Array.isArray(contenido)) {
-            viajesImportados = contenido;
-          } else if (Array.isArray(contenido.viajes)) {
-            viajesImportados = contenido.viajes;
-          } else {
-            alert("El archivo no tiene el formato correcto.");
-            return;
-          }
+  function importarDatos(event) {
+    const archivo = event.target.files[0];
+    if (!archivo) return;
 
-          const confirmar = confirm(
-            "¿Quieres importar estos viajes?\n\n" +
-            "Aceptar = se agregan al historial actual.\n" +
-            "Cancelar = no se importa nada."
-          );
+    const lector = new FileReader();
 
-          if (!confirmar) return;
+    lector.onload = function(e) {
+      try {
+        const contenido = JSON.parse(e.target.result);
 
-          viajesImportados.forEach(v => {
-            if (!v.id) {
-              v.id = crypto.randomUUID();
-            }
-          });
+        let viajesImportados = [];
 
-          viajes = [...viajes, ...viajesImportados];
-
-          guardarDatos();
-          mostrarViajes();
-          actualizarTotales();
-
-          alert("Backup importado correctamente ✅");
-
-        } catch (error) {
-          alert("No se pudo leer el archivo JSON.");
+        if (Array.isArray(contenido)) {
+          viajesImportados = contenido;
+        } else if (Array.isArray(contenido.viajes)) {
+          viajesImportados = contenido.viajes;
+        } else {
+          alert("El archivo no tiene el formato correcto.");
+          return;
         }
-      };
 
-      lector.readAsText(archivo);
+        const confirmar = confirm(
+          "¿Quieres importar estos viajes?\n\n" +
+          "Aceptar = se agregan al historial actual.\n" +
+          "Cancelar = no se importa nada."
+        );
 
-      event.target.value = "";
-    }
+        if (!confirmar) return;
 
-    function formatearFecha(fecha) {
-      if (!fecha) return "";
+        viajesImportados.forEach(v => {
+          if (!v.id) v.id = crypto.randomUUID();
 
-      const partes = fecha.split("-");
-      if (partes.length !== 3) return fecha;
+          if (!v.millasFin || Number(v.millasFin) <= 0) {
+            v.pendiente = true;
+            v.millasTotal = 0;
+          } else {
+            v.pendiente = false;
+            v.millasTotal = Number(v.millasFin) - Number(v.millasInicio);
+          }
+        });
 
-      return `${partes[1]}/${partes[2]}/${partes[0]}`;
-    }
+        viajes = [...viajes, ...viajesImportados];
 
-    function escaparHTML(texto) {
-      if (texto === null || texto === undefined) return "";
+        guardarDatos();
+        mostrarViajes();
+        actualizarTotales();
+        sugerirMillasIniciales();
 
-      return String(texto)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
+        alert("Backup importado correctamente ✅");
 
-    iniciarApp();
-  </script>
+      } catch (error) {
+        alert("No se pudo leer el archivo JSON.");
+      }
+    };
 
-</body>
-</html>
+    lector.readAsText(archivo);
+    event.target.value = "";
+  }
+
+  function formatearFecha(fecha) {
+    if (!fecha) return "";
+
+    const partes = fecha.split("-");
+    if (partes.length !== 3) return fecha;
+
+    return `${partes[1]}/${partes[2]}/${partes[0]}`;
+  }
+
+  function escaparHTML(texto) {
+    if (texto === null || texto === undefined) return "";
+
+    return String(texto)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  iniciarApp();
+</script>
